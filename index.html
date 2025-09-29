@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Live Dashboard — Top 6 Charts</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --muted:#9aa6b2; --accent:#06b6d4; --glass: rgba(255,255,255,0.03);
+      --card-pad:18px;
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#071025 0%, #0a1624 100%);color:#e6eef6}
+    .app{max-width:1200px;margin:28px auto;padding:18px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:700}
+    h1{font-size:20px;margin:0}
+    .sub{color:var(--muted);font-size:13px}
+
+    .controls{display:flex;gap:12px;align-items:center}
+    .btn{background:var(--glass);border:1px solid rgba(255,255,255,0.03);padding:8px 12px;border-radius:8px;color:var(--muted);cursor:pointer}
+
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.04);padding:var(--card-pad);border-radius:12px;min-height:220px}
+    .card h3{margin:0 0 8px 0;font-size:14px}
+    .meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:12px}
+
+    .row{display:flex;gap:16px;margin-top:16px}
+    .wide{grid-column:span 2}
+
+    footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+
+    /* responsive */
+    @media (max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}.wide{grid-column:span 2}}
+    @media (max-width:640px){.grid{grid-template-columns:1fr}.wide{grid-column:span 1}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">LD</div>
+        <div>
+          <h1>Live Dashboard</h1>
+          <div class="sub">Real-time demo — top 6 chart types (auto-updating)</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="pauseBtn" class="btn">Pause</button>
+        <button id="resetBtn" class="btn">Reset</button>
+        <input type="file" id="fileInput" class="btn" />
+        <select id="datasetSelect" class="btn"></select>
+        <button id="insightBtn" class="btn">Show Insights</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="grid">
+        <div class="card">
+          <h3>Line Chart — Sales Trend</h3>
+          <div class="meta">Live sales over time</div>
+          <canvas id="chartLine"></canvas>
+        </div>
+
+        <div class="card">
+          <h3>Bar Chart — Category Revenue</h3>
+          <div class="meta">Revenue by category</div>
+          <canvas id="chartBar"></canvas>
+        </div>
+
+        <div class="card">
+          <h3>Pie Chart — Market Share</h3>
+          <div class="meta">Percentage distribution</div>
+          <canvas id="chartPie"></canvas>
+        </div>
+
+        <div class="card wide">
+          <h3>Doughnut Chart — User Types</h3>
+          <div class="meta">New vs Returning vs Guest</div>
+          <canvas id="chartDoughnut"></canvas>
+        </div>
+
+        <div class="card">
+          <h3>Radar Chart — Performance Metrics</h3>
+          <div class="meta">Comparative KPIs</div>
+          <canvas id="chartRadar"></canvas>
+        </div>
+
+        <div class="card">
+          <h3>Polar Area — Region Activity</h3>
+          <div class="meta">Activity intensity by region</div>
+          <canvas id="chartPolar"></canvas>
+        </div>
+      </section>
+
+      <div class="row">
+        <div style="flex:1" class="card">
+          <h3>Live Data Feed</h3>
+          <div class="meta">Last 10 updates</div>
+          <ul id="feed" style="margin-top:12px;color:var(--muted);font-size:13px;line-height:1.6"></ul>
+        </div>
+        <div style="width:320px" class="card">
+          <h3>Controls</h3>
+          <div style="margin-top:10px;color:var(--muted);font-size:13px;line-height:1.6">
+            <div>Update interval (sec): <input id="interval" type="number" min="1" value="2" style="width:60px;margin-left:6px;border-radius:6px;padding:4px;border:none;background:#071827;color:#e6eef6"></div>
+            <div style="margin-top:8px">Data points: <input id="points" type="number" min="4" max="20" value="8" style="width:60px;margin-left:6px;border-radius:6px;padding:4px;border:none;background:#071827;color:#e6eef6"></div>
+            <div style="margin-top:8px">Randomize: <button id="rndBtn" class="btn">Shuffle</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1" class="card">
+          <h3>Insights</h3>
+          <div id="insights" style="margin-top:10px;color:var(--muted);font-size:13px;line-height:1.6"></div>
+        </div>
+      </div>
+    </main>
+
+    <footer>Open this file locally in your browser. Charts are powered by Chart.js and simulate live updates.</footer>
+  </div>
+
+  <script>
+    const rand = (min,max)=> Math.floor(Math.random()*(max-min+1))+min;
+
+    function makeDataset(points=8){
+      const labels = [];
+      const now = Date.now();
+      for(let i=points-1;i>=0;i--){
+        const t = new Date(now - i*1000*60);
+        labels.push(t.getHours()+":"+String(t.getMinutes()).padStart(2,'0'))
+      }
+      return {
+        labels,
+        line: labels.map(()=>rand(50,150)),
+        bar: labels.map(()=>rand(2000,8000)),
+        pie:[rand(10,40),rand(10,40),rand(10,40),rand(5,30)],
+        doughnut:[rand(40,200),rand(10,120),rand(5,80)],
+        radar:[rand(40,90),rand(30,95),rand(20,85),rand(10,90),rand(20,95)],
+        polar:[rand(10,80),rand(10,80),rand(10,80),rand(10,80),rand(10,80)]
+      }
+    }
+
+    let datasets = {"Default": makeDataset(8)};
+    let currentDataset = "Default";
+
+    const ctxLine = document.getElementById('chartLine').getContext('2d');
+    const ctxBar = document.getElementById('chartBar').getContext('2d');
+    const ctxPie = document.getElementById('chartPie').getContext('2d');
+    const ctxDough = document.getElementById('chartDoughnut').getContext('2d');
+    const ctxRadar = document.getElementById('chartRadar').getContext('2d');
+    const ctxPolar = document.getElementById('chartPolar').getContext('2d');
+
+    let pointsInput = document.getElementById('points');
+    let intervalInput = document.getElementById('interval');
+    let feedEl = document.getElementById('feed');
+    let datasetSelect = document.getElementById('datasetSelect');
+    let insightsEl = document.getElementById('insights');
+
+    function populateDatasetSelect(){
+      datasetSelect.innerHTML = "";
+      for(let name in datasets){
+        const opt = document.createElement("option");
+        opt.value = name; opt.textContent = name;
+        if(name === currentDataset) opt.selected = true;
+        datasetSelect.appendChild(opt);
+      }
+    }
+
+    let state = {running:true, tick:0};
+    let ds = datasets[currentDataset];
+
+    const lineChart = new Chart(ctxLine, {
+      type:'line',
+      data:{labels:ds.labels,datasets:[{label:'Sales',data:ds.line,fill:false,tension:0.3,borderWidth:2}]},
+      options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:false}}}
+    });
+
+    const barChart = new Chart(ctxBar, {type:'bar',data:{labels:ds.labels,datasets:[{label:'Revenue',data:ds.bar}]},options:{plugins:{legend:{display:false}}}});
+
+    const pieChart = new Chart(ctxPie, {type:'pie',data:{labels:['A','B','C','D'],datasets:[{data:ds.pie}]}});
+
+    const doughChart = new Chart(ctxDough, {type:'doughnut',data:{labels:['New','Returning','Guest'],datasets:[{data:ds.doughnut}]}});
+
+    const radarChart = new Chart(ctxRadar, {type:'radar',data:{labels:['Speed','Reliability','UX','Support','Growth'],datasets:[{label:'Score',data:ds.radar,fill:true}]},options:{elements:{line:{tension:0.2}}}});
+
+    const polarChart = new Chart(ctxPolar, {type:'polarArea',data:{labels:['North','South','East','West','Central'],datasets:[{data:ds.polar}]}});
+
+    function updateCharts(newDs){
+      [lineChart,barChart].forEach(ch=>{ch.data.labels = newDs.labels;});
+      lineChart.data.datasets[0].data = newDs.line;
+      barChart.data.datasets[0].data = newDs.bar;
+      pieChart.data.datasets[0].data = newDs.pie;
+      doughChart.data.datasets[0].data = newDs.doughnut;
+      radarChart.data.datasets[0].data = newDs.radar;
+      polarChart.data.datasets[0].data = newDs.polar;
+      [lineChart,barChart,pieChart,doughChart,radarChart,polarChart].forEach(c=>c.update());
+    }
+
+    function tick(){
+      if(!state.running) return;
+      state.tick++;
+      const points = Number(pointsInput.value)||8;
+      const newDs = makeDataset(points);
+      datasets[currentDataset] = newDs;
+      updateCharts(newDs);
+
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('li');
+      entry.textContent = `${time} — Updated data tick #${state.tick}`;
+      feedEl.prepend(entry);
+      while(feedEl.children.length>10) feedEl.removeChild(feedEl.lastChild);
+    }
+
+    let timer = setInterval(tick, Number(intervalInput.value)*1000);
+
+    document.getElementById('pauseBtn').onclick = function(){
+      state.running = !state.running;
+      this.textContent = state.running? 'Pause' : 'Resume';
+    }
+    document.getElementById('resetBtn').onclick = function(){
+      ds = makeDataset(Number(pointsInput.value));
+      datasets[currentDataset] = ds;
+      pointsInput.dispatchEvent(new Event('change'));
+      feedEl.innerHTML=''; state.tick=0;
+      updateCharts(ds);
+    }
+
+    document.getElementById('rndBtn').onclick = function(){
+      ds = makeDataset(Number(pointsInput.value));
+      datasets[currentDataset] = ds;
+      updateCharts(ds);
+    }
+
+    intervalInput.addEventListener('change', ()=>{
+      clearInterval(timer);
+      const ms = Math.max(1,Number(intervalInput.value)||2)*1000;
+      timer = setInterval(tick, ms);
+    });
+
+    pointsInput.addEventListener('change', ()=>{
+      const p = Math.max(4,Math.min(20,Number(pointsInput.value)||8));
+      pointsInput.value = p;
+      const nd = makeDataset(p);
+      datasets[currentDataset] = nd;
+      updateCharts(nd);
+    });
+
+    document.getElementById('fileInput').addEventListener('change', (e)=>{
+      const file = e.target.files[0];
+      if(file){
+        const reader = new FileReader();
+        reader.onload = (ev)=>{
+          try{
+            const data = JSON.parse(ev.target.result);
+            datasets[file.name] = data;
+            currentDataset = file.name;
+            populateDatasetSelect();
+            updateCharts(data);
+          }catch(err){alert("Invalid JSON file")}
+        }
+        reader.readAsText(file);
+      }
+    });
+
+    datasetSelect.addEventListener('change', ()=>{
+      currentDataset = datasetSelect.value;
+      ds = datasets[currentDataset];
+      updateCharts(ds);
+    });
+
+    document.getElementById('insightBtn').addEventListener('click', ()=>{
+      let summary = `Dataset: ${currentDataset}<br>`;
+      summary += `Line avg: ${(datasets[currentDataset].line.reduce((a,b)=>a+b,0)/datasets[currentDataset].line.length).toFixed(2)}<br>`;
+      summary += `Bar max: ${Math.max(...datasets[currentDataset].bar)}<br>`;
+      summary += `Pie total: ${datasets[currentDataset].pie.reduce((a,b)=>a+b,0)}`;
+      insightsEl.innerHTML = summary;
+    });
+
+    populateDatasetSelect();
+    tick();
+  </script>
+</body>
+</html>
